@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% block head %}
+  {# إذا كان base.html يحتوي Bootstrap احذف هذا الجزء #}
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+  <style>
+    /* تحسينات مرئية */
+    .card-compact { padding: .85rem; }
+    .small-muted { font-size: .9rem; color: #6c757d; }
+    .table-fixed thead { position: sticky; top: 0; background: #fff; z-index: 2; }
+    .entry-actions .btn { min-width: 40px; }
+    .remove-row { color: #fff; background:#dc3545; border:0; border-radius:6px; }
+    .add-row { min-width:160px; }
+    .input-sm { padding: .375rem .5rem; font-size: .9rem; }
+    @media (max-width: 767px) {
+      .table-responsive { font-size: .92rem; }
+      .hide-sm { display: none !important; }
+    }
+    /* preview box (developer-provided local file) */
+    .file-preview {
+      max-width: 260px;
+      border-radius: .5rem;
+      border: 1px solid #e9ecef;
+      overflow: hidden;
+      background: #fff;
+    }
+    .help-block { font-size: .88rem; color:#6c757d; }
+  </style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row g-3">
+    <div class="col-12">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <div>
+          <h4 class="mb-0">Manual test entry</h4>
+          <div class="small-muted">Add one or more test rows and submit to the interpreter.</div>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+          <button id="downloadCsvBtn" type="button" class="btn btn-outline-success btn-sm">Download CSV</button>
+          <a href="{% url 'CBC_App:upload_pdf' %}" class="btn btn-outline-secondary btn-sm">Upload PDF instead</a>
+        </div>
+      </div>
+
+      <div class="card shadow-sm">
+        <div class="card-body card-compact">
+          <form id="manualForm" method="post" action="{% url 'CBC_App:manual_entry_process' %}">
+            {% csrf_token %}
+            <div class="row mb-3 align-items-center">
+              <div class="col-md-8">
+                <p class="mb-0 help-block">Enter the test values. You can choose a canonical test (recommended) or provide a custom label.</p>
+              </div>
+              <div class="col-md-4 text-md-end">
+                <button id="addRow" type="button" class="btn btn-primary add-row btn-sm">+ Add row</button>
+              </div>
+            </div>
+
+            <div class="table-responsive mb-3">
+              <table id="entriesTable" class="table table-hover table-bordered align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th style="min-width:220px">Test (select)</th>
+                    <th style="min-width:180px">Or custom label</th>
+                    <th style="width:110px">Value</th>
+                    <th style="width:110px">Unit</th>
+                    <th style="width:110px" class="hide-sm">Ref min</th>
+                    <th style="width:110px" class="hide-sm">Ref max</th>
+                    <th style="width:90px">Remove</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="entry-row">
+                    <td>
+                      <select name="test_select" class="form-select form-select-sm input-sm">
+                        <option value="">-- choose --</option>
+                        {% for t in tests %}
+                          <option value="{{ t.id }}">{{ t.display_name }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                    <td><input type="text" name="label_raw" class="form-control form-control-sm input-sm" placeholder="Optional label"></td>
+                    <td><input type="text" name="value" class="form-control form-control-sm input-sm" required pattern="^[0-9.,-]+$" title="Numeric value"></td>
+                    <td><input type="text" name="unit" class="form-control form-control-sm input-sm" placeholder="e.g., g/dL"></td>
+                    <td class="hide-sm"><input type="text" name="ref_min" class="form-control form-control-sm input-sm"></td>
+                    <td class="hide-sm"><input type="text" name="ref_max" class="form-control form-control-sm input-sm"></td>
+                    <td class="text-center">
+                      <button type="button" class="btn btn-danger  remove-row btn-sm" title="Remove row">✖</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
+              <div class="small-muted">Tip: use canonical list to improve mapping to known tests.</div>
+              <div class="d-flex gap-2">
+                <button id="clearBtn" type="button" class="btn btn-outline-secondary btn-sm">Clear</button>
+                <button id="submitBtn" type="submit" class="btn btn-success btn-sm">Submit to Interpreter</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- modal for validation errors -->
+  <div class="modal fade" id="validationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-body text-center" id="validationMessage"></div>
+        <div class="modal-footer justify-content-center">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">OK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# scripts #}
+<script>
+(function(){
+  const addBtn = document.getElementById('addRow');
+  const tbody = document.querySelector('#entriesTable tbody');
+  const submitBtn = document.getElementById('submitBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const downloadCsvBtn = document.getElementById('downloadCsvBtn');
+
+  function attachRemoveHandlers() {
+    document.querySelectorAll('.remove-row').forEach(btn => {
+      btn.onclick = function(e) {
+        const row = e.target.closest('tr');
+        if (document.querySelectorAll('.entry-row').length > 1) {
+          row.remove();
+        } else {
+          // clear fields if only one row
+          row.querySelectorAll('input').forEach(i => i.value = '');
+          row.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
+        }
+      };
+    });
+  }
+
+  function newEmptyRow() {
+    const firstRow = document.querySelector('.entry-row');
+    const newRow = firstRow.cloneNode(true);
+    newRow.querySelectorAll('input').forEach(i => i.value = '');
+    newRow.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
+    return newRow;
+  }
+
+  addBtn.addEventListener('click', function() {
+    const nr = newEmptyRow();
+    tbody.appendChild(nr);
+    attachRemoveHandlers();
+    // focus first input in new row
+    nr.querySelector('select, input').focus();
+  });
+
+  clearBtn.addEventListener('click', function() {
+    document.querySelectorAll('.entry-row').forEach((row, idx) => {
+      if (idx === 0) {
+        row.querySelectorAll('input').forEach(i => i.value = '');
+        row.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
+      } else {
+        row.remove();
+      }
+    });
+  });
+
+  // client validation before submit
+  document.getElementById('manualForm').addEventListener('submit', function(e){
+    // ensure at least one row has a non-empty value
+    const rows = document.querySelectorAll('.entry-row');
+    let ok = false;
+    rows.forEach(r => {
+      const v = r.querySelector('input[name="value"]');
+      if (v && v.value.trim() !== '') ok = true;
+    });
+    if (!ok) {
+      e.preventDefault();
+      showValidation("Please provide at least one test value before submitting.");
+      return false;
+    }
+    // allow form to submit
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting...';
+  });
+
+  // CSV download for user convenience
+  downloadCsvBtn.addEventListener('click', function(){
+    const rows = [['Test','Label','Value','Unit','Ref min','Ref max']];
+    document.querySelectorAll('.entry-row').forEach(r => {
+      const sel = r.querySelector('select[name="test_select"]');
+      const testName = sel ? (sel.options[sel.selectedIndex].text || '') : '';
+      const label = r.querySelector('input[name="label_raw"]').value || '';
+      const value = r.querySelector('input[name="value"]').value || '';
+      const unit = r.querySelector('input[name="unit"]').value || '';
+      const rmin = r.querySelector('input[name="ref_min"]').value || '';
+      const rmax = r.querySelector('input[name="ref_max"]').value || '';
+      rows.push([testName, label, value, unit, rmin, rmax]);
+    });
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'manual_tests.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  });
+
+  function showValidation(msg){
+    const modal = new bootstrap.Modal(document.getElementById('validationModal'));
+    document.getElementById('validationMessage').textContent = msg;
+    modal.show();
+  }
+
+  // initialize handlers
+  attachRemoveHandlers();
+})();
+</script>
+
+{% endblock %}
+
+
+{% comment %} {% extends "base.html" %}
+{% block content %}
+<h3>Manual test entry</h3>
+
+<form id="manualForm" method="post" action="{% url 'CBC_App:manual_entry_process' %}">
+  {% csrf_token %}
+  <table id="entriesTable" class="table table-bordered">
+    <thead>
+      <tr>
+        <th style="width:240px">Test (select)</th>
+        <th>Or custom label</th>
+        <th>Value</th>
+        <th>Unit</th>
+        <th>Ref min</th>
+        <th>Ref max</th>
+        <th style="width:80px">Remove</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="entry-row">
+        <td>
+          <select name="test_select" class="form-control">
+            <option value="">-- choose --</option>
+            {% for t in tests %}
+              <option value="{{ t.id }}">{{ t.display_name }}</option>
+            {% endfor %}
+          </select>
+        </td>
+        <td><input type="text" name="label_raw" class="form-control" placeholder="Optional label"></td>
+        <td><input type="text" name="value" class="form-control" required></td>
+        <td><input type="text" name="unit" class="form-control"></td>
+        <td><input type="text" name="ref_min" class="form-control"></td>
+        <td><input type="text" name="ref_max" class="form-control"></td>
+        <td><button type="button" class="btn btn-danger remove-row">✖</button></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="mb-3">
+    <button id="addRow" type="button" class="btn btn-secondary">Add row</button>
+    <button type="submit" class="btn btn-primary">Submit to Interpreter</button>
+  </div>
+</form>
+
+<script>
+(function(){
+  const addBtn = document.getElementById('addRow');
+  const tbody = document.querySelector('#entriesTable tbody');
+
+  function attachRemoveHandlers() {
+    document.querySelectorAll('.remove-row').forEach(btn => {
+      btn.onclick = function(e) {
+        const row = e.target.closest('tr');
+        if (document.querySelectorAll('.entry-row').length > 1) {
+          row.remove();
+        } else {
+          row.querySelectorAll('input').forEach(i => i.value = '');
+          row.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
+        }
+      }
+    });
+  }
+
+  addBtn.addEventListener('click', function() {
+    const firstRow = document.querySelector('.entry-row');
+    const newRow = firstRow.cloneNode(true);
+    newRow.querySelectorAll('input').forEach(i => i.value = '');
+    newRow.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
+    tbody.appendChild(newRow);
+    attachRemoveHandlers();
+  });
+
+  attachRemoveHandlers();
+})();
+</script>
+{% endblock %} {% endcomment %}

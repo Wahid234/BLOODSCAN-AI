@@ -1,0 +1,255 @@
+{# CBC_App/templates/shared_detail.html #}
+{% extends "base.html" %}
+
+{% block head %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  .profile-thumb { width:64px; height:64px; object-fit:cover; border-radius:50%; }
+  .small-muted { font-size:.9rem; color:#6c757d; }
+  .interp-cell { min-width:220px; max-width:640px; word-break:break-word; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-start mb-3">
+    <div class="d-flex gap-3 align-items-center">
+      {% if shared.sender.userprofile.profile_image %}
+        <img src="{{ shared.sender.userprofile.profile_image.url }}" class="profile-thumb" alt="patient">
+      {% else %}
+        <div class="profile-thumb d-flex align-items-center justify-content-center bg-secondary text-white">
+          {{ shared.sender.user.username|slice:":1"|upper }}
+        </div>
+      {% endif %}
+      <div>
+        <h5 class="mb-0">{{ shared.sender.user.username }}</h5>
+        <div class="small-muted">Shared on {{ shared.created_at|date:"Y-m-d H:i" }}</div>
+      </div>
+    </div>
+{% if request.user == shared.doctor %}
+    <div class="text-end">
+      <a href="{% url 'CBC_App:doctor_inbox' %}" class="btn btn-outline-secondary btn-sm">Back to inbox</a>
+      {# Accept / Reject #}
+      <form method="post" action="{% url 'CBC_App:shared_accept' %}" style="display:inline;">
+        {% csrf_token %}
+        <input type="hidden" name="shared_id" value="{{ shared.id }}">
+        <button class="btn btn-success btn-sm">Accept</button>
+      </form>
+      <form method="post" action="{% url 'CBC_App:shared_reject' %}" style="display:inline;">
+        {% csrf_token %}
+        <input type="hidden" name="shared_id" value="{{ shared.id }}">
+        <button class="btn btn-danger btn-sm">Reject</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-8">
+      <div class="card mb-3">
+        <div class="card-body">
+          <h6 class="card-title">Document & Tests</h6>
+          {% if shared.document %}
+            <div class="mb-2">
+              <strong>Document:</strong>
+              <a href="{{ shared.document.file.url }}" target="_blank">{{ shared.document.filename }}</a>
+              <div class="small-muted">Uploaded: {{ shared.document.upload_time|date:"Y-m-d" }}</div>
+            </div>
+          {% endif %}
+
+          {% if shared.tests.all %}
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th>#</th>
+                    <th>Test</th>
+                    <th>Value</th>
+                    <th>Unit</th>
+                    <th>Range</th>
+                    <th>Flag</th>
+                    <th>Interpretation</th>
+                  </tr>
+                </thead>
+                <tbody>
+                {% if tests_info %}
+                  {% for item in tests_info %}
+                    {% with t=item.test_result %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td class="fw-semibold">
+                        {{ t.test.display_name|default:t.label_raw|default:"(unnamed)" }}
+                        {% if t.test %}
+                            <div class="small-muted">{{ t.test.code }}</div>
+                        {% endif %}
+                        </td>
+
+                        <td>{{ t.value_raw }}</td>
+                        <td>{{ t.value_numeric }}</td>
+                        <td>{{ t.unit }}</td>
+
+                        <td>
+                        {# attempt to show ref range if available in t or in meta - here we check t first #}
+                        {% if t.value_numeric and t.unit %}
+                            {# You may refine: many rows don't store ref_min/ref_max on TestResult model #}
+                            <span class="text-muted">-</span>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                        </td>
+
+                        <td>
+                        {% if item.flag %}
+                            {% if item.flag == "high" %}
+                            <span class="badge bg-danger">High</span>
+                            {% elif item.flag == "low" %}
+                            <span class="badge bg-warning text-dark">Low</span>
+                            {% elif item.flag == "normal" %}
+                            <span class="badge bg-success">Normal</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ item.flag }}</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                        </td>
+
+                        <td class="interp-cell">
+                        {% if item.text_en %}
+                            {{ item.text_en }}
+                        {% else %}
+                            <span class="text-muted">(no interpretation)</span>
+                        {% endif %}
+                        </td>
+                    </tr>
+                    {% endwith %}
+                    {% endfor %}
+                {% else %}
+                    <tr><td colspan="7" class="text-center small-muted">No tests attached.</td></tr>
+                {% endif %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="small-muted">No tests attached. This is a document-only share.</div>
+          {% endif %}
+        </div>
+      </div>
+
+      {# Recommendations area #}
+      <div class="card">
+        <div class="card-body">
+          <h6 class="card-title">Recommendations</h6>
+
+          {# List existing recommendations #}
+          {% if shared.recommendations.all %}
+            <div class="mb-3">
+              {% for rec in shared.recommendations.all %}
+                <div class="border rounded p-2 mb-2">
+                  <div class="d-flex justify-content-between">
+                    <div><strong>{{ rec.doctor.get_full_name|default:rec.doctor.username }}</strong></div>
+                    <div class="small-muted">{{ rec.created_at|date:"Y-m-d H:i" }}</div>
+                  </div>
+                  <div class="mt-1">{{ rec.text|linebreaksbr }}</div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="small-muted mb-3">No recommendations yet.</div>
+          {% endif %}
+
+          {# Doctor recommendation form (AJAX) #}
+          {% if request.user == shared.doctor %}
+            <form id="recForm">
+              {% csrf_token %}
+              <input type="hidden" name="shared_report_id" value="{{ shared.id }}">
+              <div class="mb-2">
+                <label for="recText" class="form-label">Write a recommendation</label>
+                <textarea id="recText" name="text" class="form-control" rows="4" required></textarea>
+              </div>
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" id="visibleToPatient" name="visible_to_patient" checked>
+                <label class="form-check-label" for="visibleToPatient">Visible to patient</label>
+              </div>
+              <button type="submit" class="btn btn-primary">Submit recommendation</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card mb-3">
+        <div class="card-body">
+          <h6 class="card-title">Patient</h6>
+          <div>
+            <strong>{{ shared.sender.user.username }}</strong>
+            <div class="small-muted">{{ shared.sender.user.email }}</div>
+            {% if shared.sender.userprofile.mobile_number %}<div class="small-muted">Phone: {{ shared.sender.userprofile.mobile_number }}</div>{% endif %}
+            {% if shared.sender.userprofile.address %}<div class="small-muted">Address: {{ shared.sender.userprofile.address }}</div>{% endif %}
+          </div>
+          <hr/>
+          <h6 class="card-title">Share Info</h6>
+          <div class="small-muted">Status: <strong>{{ shared.status }}</strong></div>
+          {% if shared.document %}
+            <div class="small-muted">Document: <a href="{{ shared.document.file.url }}" target="_blank">{{ shared.document.filename }}</a></div>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if request.user == shared.doctor %}
+      <div class="card">
+        <div class="card-body">
+          <h6 class="card-title">Actions</h6>
+          <div class="d-grid gap-2">
+            <a class="btn btn-outline-secondary" href="{% url 'CBC_App:doctor_inbox' %}">Back to inbox</a>
+              <form method="post" action="{% url 'CBC_App:shared_accept' %}">
+                {% csrf_token %}
+                <input type="hidden" name="shared_id" value="{{ shared.id }}">
+                <button class="btn btn-success">Mark as viewed</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  function getCookie(name) {
+    let v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return v ? v.pop() : '';
+  }
+  const csrftoken = getCookie('csrftoken');
+
+  // AJAX add recommendation
+  const recForm = document.getElementById('recForm');
+  if (recForm){
+    recForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(recForm);
+      try {
+        const resp = await fetch("{% url 'CBC_App:add_recommendation' %}", {
+          method: 'POST',
+          headers: { 'X-CSRFToken': csrftoken },
+          body: fd
+        });
+        const data = await resp.json();
+        if (data.ok){
+          alert('Recommendation saved');
+          location.reload();
+        } else {
+          alert('Save failed: ' + JSON.stringify(data.errors || data));
+        }
+      } catch(err){
+        alert('Network error');
+      }
+    });
+  }
+})();
+</script>
+{% endblock %}

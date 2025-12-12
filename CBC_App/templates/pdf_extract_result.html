@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+
+{% block head %}
+  {# إذا كان base.html يتضمن Bootstrap قم بإزالة هذا القسم أو اتركه حسب الحاجة #}
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"  crossorigin="anonymous">
+  <style>
+    /* لمسات بسيطة لتحسين القراءة */
+    .ocr-pre { background: #f8f9fa; border-radius: .25rem; padding: .75rem; font-size: .9rem; white-space: pre-wrap; max-height: 200px; overflow: auto; }
+    .table-fixed thead { position: sticky; top: 0; background: #fff; z-index: 1; }
+    .small-muted { font-size: .875rem; color: #6c757d; }
+    .action-btn { min-width: 44px; }
+    .card-compact { padding: .75rem; }
+    .lang-toggle .btn.active { box-shadow: 0 0 0 0.15rem rgba(13,110,253,.15); }
+    .text-ar { direction: rtl; unicode-bidi: embed; }
+    .interp-cell { min-width: 300px; max-width: 560px; word-break: break-word; }
+  </style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <!-- Header -->
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h3 class="mb-0">Parsed results</h3>
+      <div class="small-muted">File: <strong>{{ doc.filename }}</strong></div>
+    </div>
+
+    <div class="d-flex gap-2 align-items-center">
+      <div class="lang-toggle btn-group me-2" role="group" aria-label="Language toggle">
+        <button id="lang-en" type="button" class="btn btn-outline-primary btn-sm">English</button>
+        <button id="lang-ar" type="button" class="btn btn-outline-primary btn-sm">العربية</button>
+      </div>
+
+      <a href="{% url 'CBC_App:upload_pdf' %}" class="btn btn-outline-primary">Upload another</a>
+      <button id="download-csv" class="btn btn-outline-success">Download CSV</button>
+    </div>
+  </div>
+
+  <!-- Row: OCR text + summary -->
+  <div class="row mb-3">
+    <div class="col-lg-3 mb-3">
+      <div class="card shadow-sm h-100">
+        <div class="card-body card-compact">
+          <h6 class="card-title">Summary</h6>
+          <p class="small-muted mb-1">Number of extracted tests</p>
+          <h4 class="mb-2">{{ saved|length }}</h4>
+          <p class="small-muted mb-0">Status:
+            {% if doc.status == "completed" %}
+              <span class="badge bg-success">Processed</span>
+            {% elif doc.status == "processing" %}
+              <span class="badge bg-warning text-dark">Processing</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ doc.status|default:"N/A" }}</span>
+            {% endif %}
+          </p>
+          <hr/>
+          <p class="small-muted mb-1">Engine</p>
+          <p class="mb-0"><em>See processing log for details</em></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-9">
+      <!-- Table of results -->
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover table-striped mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>#</th><th>Test</th><th>Extracted</th><th>Numeric</th><th>Unit</th><th>Range</th><th>Flag</th><th>Interpretation</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in saved %}
+            {% with tr=item.test_result it=item.interpretation inp=item.input %}
+            <tr>
+              <td>{{ forloop.counter }}</td>
+              <td class="fw-semibold">
+                {{ tr.test.display_name|default:inp.test_name|default:"(unnamed)" }}
+                {% if tr.test %}<div class="small-muted">{{ tr.test.code }}</div>{% endif %}
+              </td>
+              <td>{{ tr.value_raw }}</td>
+              <td>{{ tr.value_numeric }}</td>
+              <td>{{ tr.unit }}</td>
+              <td>
+                {% if inp.ref_min or inp.ref_max %}
+                  {{ inp.ref_min|default:"-" }} - {{ inp.ref_max|default:"-" }}
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if it.flag == "high" %}
+                  <span class="badge bg-danger">High</span>
+                {% elif it.flag == "low" %}
+                  <span class="badge bg-warning text-dark">Low</span>
+                {% elif it.flag == "normal" %}
+                  <span class="badge bg-success">Normal</span>
+                {% else %}
+                  <span class="badge bg-secondary">Unknown</span>
+                {% endif %}
+              </td>
+
+              <td class="interp-cell">
+                <div class="interp-block" data-index="{{ forloop.counter0 }}">
+                  {# ENGLISH (primary) #}
+                  <div class="text-en small">
+                    {{ item.text_en|default:it.text|default:"No English interpretation" }}
+                  </div>
+
+                  {# ARABIC (hidden by default, toggled by JS) #}
+                  <div class="text-ar small" style="display:none; direction:rtl;">
+                    {{ item.text_ar|default:it.meta.text_ar|default:"" }}
+                  </div>
+                </div>
+              </td>
+
+             
+            </tr>
+            {% endwith %}
+          {% empty %}
+            <tr><td colspan="9" class="text-center small-muted">No extracted tests to show.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+    </div>
+  </div>
+{# ... header, head etc يبقى كما هو لديك حتى قبل الجدول ... #}
+
+
+{# بقية السكربتات (language toggle, CSV download) استخدم item.text_en/item.text_ar أيضاً #}
+
+
+  <!-- Footer actions -->
+  <div class="d-flex justify-content-end mt-3 gap-2">
+    <a href="{% url 'CBC_App:manual_entry' %}" class="btn btn-outline-secondary">Manual entry</a>
+    <a href="#" class="btn btn-primary">Save summary</a>
+    <!-- Share button (place near top actions) -->
+<button class="btn btn-outline-primary" id="open-share-modal">Share with Doctor</button>
+
+<!-- Modal (Bootstrap 5) -->
+<div class="modal fade" id="shareModal" tabindex="-1" aria-labelledby="shareModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form id="shareForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="shareModalLabel">Share results with a doctor</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>Select a doctor and which tests to share. You can add an optional message.</p>
+
+          <div class="mb-3">
+            <label for="doctorSelect" class="form-label">Doctor</label>
+            <select id="doctorSelect" class="form-select" name="doctor_id" required>
+              <option value="">Loading doctors...</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Tests to share</label>
+            <div id="testsCheckboxList">
+              <!-- lines inserted by JS -->
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="shareMessage" class="form-label">Message (optional)</label>
+            <textarea id="shareMessage" name="message" rows="3" class="form-control"></textarea>
+          </div>
+
+          <!-- hidden fields -->
+          <input type="hidden" id="documentIdField" name="document_id" value="{{ doc.id|default:'' }}">
+          <input type="hidden" id="testIdsField" name="test_ids" value="">
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button id="doShareBtn" type="submit" class="btn btn-primary">Share</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const shareModal = new bootstrap.Modal(document.getElementById('shareModal'));
+  const openBtn = document.getElementById('open-share-modal');
+  const doctorSelect = document.getElementById('doctorSelect');
+  const testsContainer = document.getElementById('testsCheckboxList');
+  const testIdsField = document.getElementById('testIdsField');
+  const docIdField = document.getElementById('documentIdField');
+
+  // Prepare test list from page results: assume 'saved' context exists in template
+  const savedItems = [
+    {% for item in saved %}
+      {
+        id: "{{ item.test_result.id }}",
+        name: "{{ item.test_result.test.display_name|default:item.input.test_name|escapejs }}",
+        value: "{{ item.test_result.value_raw|escapejs }}"
+      }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ];
+
+  function renderTestsCheckboxes(){
+    testsContainer.innerHTML = '';
+    if (!savedItems || savedItems.length === 0) {
+      testsContainer.innerHTML = '<div class="text-muted">No individual tests available to share (sharing document only).</div>';
+      return;
+    }
+    savedItems.forEach(it => {
+      const id = it.id;
+      const label = it.name + ' — ' + (it.value || '');
+      const html = `
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" value="${id}" id="chk-${id}" checked>
+          <label class="form-check-label" for="chk-${id}">${label}</label>
+        </div>`;
+      testsContainer.insertAdjacentHTML('beforeend', html);
+    });
+  }
+
+  openBtn?.addEventListener('click', async (e) => {
+    // fetch doctors list
+    try {
+      const resp = await fetch("{% url 'CBC_App:api_doctors_list' %}");
+      const data = await resp.json();
+      doctorSelect.innerHTML = '<option value="">Select a doctor</option>';
+      data.doctors.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.id;
+        opt.textContent = d.full_name + (d.specialty ? ' — ' + d.specialty : '');
+        doctorSelect.appendChild(opt);
+      });
+    } catch (err) {
+      doctorSelect.innerHTML = '<option value="">Could not load doctors</option>';
+    }
+    renderTestsCheckboxes();
+    shareModal.show();
+  });
+
+  // submit share form
+  document.getElementById('shareForm').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    // gather checked test ids
+    const ids = Array.from(testsContainer.querySelectorAll('input[type=checkbox]:checked')).map(ch => ch.value);
+    testIdsField.value = ids.join(',');
+    // prepare form data
+    const formData = new FormData(document.getElementById('shareForm'));
+    // POST to endpoint
+    try {
+      const resp = await fetch("{% url 'CBC_App:share_with_doctor' %}", {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}'},
+        body: formData
+      });
+      const body = await resp.json();
+      if (body.ok) {
+        shareModal.hide();
+        alert('Shared successfully with doctor.');
+      } else {
+        alert('Share failed: ' + (body.error || JSON.stringify(body.errors || body)));
+      }
+    } catch (err) {
+      alert('Share request failed: ' + err);
+    }
+  });
+});
+</script>
+
+
+{# Optional: Bootstrap JS + helpers #}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"  crossorigin="anonymous"></script>
+<script>
+  // Toggle large OCR text
+  const ocrEl = document.getElementById('ocrText');
+  const toggleBtn = document.getElementById('toggle-ocr');
+  toggleBtn?.addEventListener('click', (e) => {
+    if (!ocrEl) return;
+    if (ocrEl.style.maxHeight) {
+      ocrEl.style.maxHeight = null;
+      toggleBtn.textContent = 'Toggle full';
+    } else {
+      ocrEl.style.maxHeight = '600px';
+      toggleBtn.textContent = 'Collapse';
+    }
+  });
+
+  // copy OCR
+  document.getElementById('copy-ocr')?.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(ocrEl.textContent);
+      alert('OCR text copied to clipboard');
+    } catch (err) {
+      alert('Copy failed');
+    }
+  });
+
+  // Language toggle logic (persist in localStorage)
+  const btnEn = document.getElementById('lang-en');
+  const btnAr = document.getElementById('lang-ar');
+
+  function showEnglish() {
+    document.querySelectorAll('.text-en').forEach(el => el.style.display = '');
+    document.querySelectorAll('.text-ar').forEach(el => el.style.display = 'none');
+    btnEn.classList.add('active'); btnAr.classList.remove('active');
+    try { localStorage.setItem('results_lang', 'en'); } catch(e) {}
+  }
+  function showArabic() {
+    document.querySelectorAll('.text-en').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.text-ar').forEach(el => el.style.display = '');
+    btnAr.classList.add('active'); btnEn.classList.remove('active');
+    try { localStorage.setItem('results_lang', 'ar'); } catch(e) {}
+  }
+
+  btnEn?.addEventListener('click', showEnglish);
+  btnAr?.addEventListener('click', showArabic);
+
+  // restore language preference on load
+  (function(){
+    try {
+      const lang = localStorage.getItem('results_lang') || 'en';
+      if (lang === 'ar') showArabic(); else showEnglish();
+    } catch(e) { showEnglish(); }
+  })();
+
+  // CSV download (includes English & Arabic interpretation columns)
+  document.getElementById('download-csv')?.addEventListener('click', () => {
+    const rows = [
+      ['Test','Extracted','Numeric','Unit','Range','Flag','Interpretation (EN)','Interpretation (AR)']
+    ];
+    {% for item in saved %}
+      (function(){
+        const testName = "{{ item.test_result.test.display_name|default:item.input.test_name|escapejs }}";
+        const extracted = "{{ item.test_result.value_raw|default:''|escapejs }}";
+        const numeric = "{{ item.test_result.value_numeric|default:'' }}";
+        const unit = "{{ item.test_result.unit|default:''|escapejs }}";
+        const range = "{% if item.input.ref_min or item.input.ref_max %}{{ item.input.ref_min|default:'' }} - {{ item.input.ref_max|default:'' }}{% else %}-{% endif %}";
+        const flag = "{{ item.interpretation.flag|default:'unknown'|escapejs }}";
+        let txt_en = "{% if item.output and item.output.text_en %}{{ item.output.text_en|escapejs }}{% elif item.raw_model_output and item.raw_model_output.text_en %}{{ item.raw_model_output.text_en|escapejs }}{% else %}{% endif %}";
+        let txt_ar = "{% if item.output and item.output.text_ar %}{{ item.output.text_ar|escapejs }}{% elif item.raw_model_output and item.raw_model_output.text_ar %}{{ item.raw_model_output.text_ar|escapejs }}{% else %}{% endif %}";
+        if (!txt_ar) txt_ar = txt_en;
+        rows.push([testName, extracted, numeric, unit, range, flag, txt_en, txt_ar]);
+      })();
+    {% endfor %}
+    let csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '{{ doc.filename|default:"results" }}.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+</script>
+{% endblock %}

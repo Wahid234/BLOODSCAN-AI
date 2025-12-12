@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% block title %}Create account{% endblock %}
+
+{% block extra_css %}
+<style>
+  #id_address {
+    rows: 3 !important;
+    height: 80px; /* يمكنك ضبط الارتفاع يدويًا أيضًا */
+    min-height: 80px;
+    max-height: 80px;
+    resize: none; /* لمنع المستخدم من تغيير الحجم */
+}
+    /* ===== Layout ===== */
+    .auth-wrapper {
+      min-height: 100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding: 2.5rem 1rem;
+      background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+    }
+    .signup-card {
+      width: 100%;
+      max-width: 780px;
+      border-radius: 12px;
+      box-shadow: 0 12px 40px rgba(33,37,41,0.08);
+      overflow: hidden;
+      background: #fff;
+    }
+    .signup-card .card-body { padding: 1.25rem; }
+
+    /* ===== Header ===== */
+    .brand-row {
+      display:flex;
+      align-items:center;
+      gap:12px;
+      margin-bottom: 0.5rem;
+    }
+    .brand-row img { height:44px; width:44px; object-fit:cover; border-radius:8px; }
+
+    /* ===== Helpers ===== */
+    .small-info { font-size: 0.92rem; color: #6b7280; }
+    .divider { height:1px; background:#eef2f6; margin: 1rem 0; }
+    .field-row { gap: 0.75rem; }
+
+    /* ===== Password toggle inside input ===== */
+    .password-toggle-btn {
+      position: absolute;
+      top: 50%;
+      right: 0.6rem;
+      transform: translateY(-50%);
+      background: transparent;
+      border: none;
+      padding: 0.2rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #6c757d;
+      transition: color .12s ease, transform .09s ease;
+      border-radius: 6px;
+    }
+    .password-toggle-btn:focus { outline: none; box-shadow: none; }
+    .password-toggle-btn:hover { color: #212529; transform: translateY(-50%) scale(1.03); }
+
+    /* show eye-slash when pressed */
+    .password-toggle-btn .icon-eye-slash { display: none; }
+    .password-toggle-btn[aria-pressed="true"] .icon-eye { display: none; }
+    .password-toggle-btn[aria-pressed="true"] .icon-eye-slash { display: inline; }
+
+    /* spacing: give inputs room for the button */
+    .password-input-space {
+      padding-right: 3rem !important;
+    }
+
+    /* avoid overlapping built-in validation icons */
+    .form-control.is-invalid ~ .password-toggle-btn,
+    .form-control.is-valid ~ .password-toggle-btn {
+      right: 2.25rem;
+    }
+
+    /* ===== Responsive adjustments ===== */
+    @media (max-width:576px) {
+      .signup-card .card-body { padding: 1rem; }
+      .brand-row { justify-content:center; }
+    }
+</style>
+{% endblock %}
+{% block header %} {% endblock %}
+{% block content %}
+<div class="auth-wrapper">
+  <div class="signup-card card">
+    <div class="card-body">
+      <div class="p-2">
+        <div class="brand-row">
+          <img src="{% static 'images/logo.png' %}" alt="Logo" onerror="this.style.display='none'">
+          <div>
+            <h4 class="text-center">Create an account</h4>
+            <div class="small-info text-center">Enter your details to get started.</div>
+            <hr>
+          </div>
+        </div>
+
+        {% if messages %}
+          {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} py-2" role="alert">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data" novalidate>
+          {% csrf_token %}
+
+          <div class="row field-row">
+            <div class="col-sm-6 mb-3">
+              {{ form.username|as_crispy_field }}
+            </div>
+            <div class="col-sm-6 mb-3">
+              {{ form.email|as_crispy_field }}
+            </div>
+          </div>
+
+          <div class="row field-row">
+            <div class="col-sm-6 mb-3 position-relative">
+              {{ form.password1|as_crispy_field }}
+              <!-- eye button inside input for password1 -->
+              <button type="button"
+                      class="password-toggle-btn"
+                      data-target="id_password1"
+                      aria-label="Toggle password visibility"
+                      aria-pressed="false">
+                <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <svg class="icon-eye-slash" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.4 21.4 0 0 1 5.06-6.94"></path>
+                  <path d="M1 1l22 22"></path>
+                </svg>
+              </button>
+            </div>
+
+            <div class="col-sm-6 mb-3 position-relative">
+              {{ form.password2|as_crispy_field }}
+              <!-- eye button inside input for password2 -->
+              <button type="button"
+                      class="password-toggle-btn"
+                      data-target="id_password2"
+                      aria-label="Toggle password visibility"
+                      aria-pressed="false">
+                <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <svg class="icon-eye-slash" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.4 21.4 0 0 1 5.06-6.94"></path>
+                  <path d="M1 1l22 22"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="row field-row">
+            <div class="col-sm-6 mb-3">
+              {{ form.full_name|as_crispy_field }}
+            </div>
+            <div class="col-sm-6 mb-3">
+              {{ form.role|as_crispy_field }}
+            </div>
+          </div>
+
+          <div class="row field-row">
+            <div class="col-sm-6 mb-3">
+              {{ form.mobile_number|as_crispy_field }}
+            </div>
+            <div class="col-sm-6 mb-3">
+              {{ form.gender|as_crispy_field }}
+            </div>
+          </div>
+
+          <div class="mb-3">
+            {{ form.address|as_crispy_field }}
+          </div>
+
+          <div class="row field-row">
+            <div class="col-sm-6 mb-3">
+              {{ form.birth_date|as_crispy_field }}
+            </div>
+
+            <div class="col-sm-6 mb-3">
+              <label for="{{ form.profile_image.id_for_label }}" class="form-label">Profile image</label>
+              {{ form.profile_image }}
+              <div class="form-text small-info">Optional — JPG/PNG. Max recommended 2MB.</div>
+              {% if form.profile_image.errors %}
+                <div class="invalid-feedback d-block">{{ form.profile_image.errors }}</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="mt-3 d-grid">
+            <button type="submit" class="btn btn-primary btn-lg">Sign up</button>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="text-center small-info">
+            Already have an account? <a href="{% url 'CBC_App:login' %}">Sign in</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // عند تحميل الصفحة
+
+
+document.addEventListener('DOMContentLoaded', function () {
+     const textarea = document.getElementById('id_address');
+    if (textarea) {
+        textarea.setAttribute('rows', '3');
+        textarea.rows = 3;
+    } // focus username
+  const user = document.querySelector('input[name="username"]');
+  if (user) user.focus();
+
+  // ensure password inputs get right padding so button doesn't overlap
+  ['id_password1', 'id_password2'].forEach(function(id){
+    const input = document.getElementById(id);
+    if (input) {
+      input.classList.add('password-input-space');
+      // set autocomplete for security/accessibility
+      if (!input.hasAttribute('autocomplete')) input.setAttribute('autocomplete','new-password');
+    }
+  });
+
+  // password toggle buttons functionality
+  document.querySelectorAll('.password-toggle-btn').forEach(function(btn) {
+    const targetId = btn.getAttribute('data-target');
+    const input = document.getElementById(targetId);
+
+    // default aria-pressed if missing
+    if (!btn.hasAttribute('aria-pressed')) btn.setAttribute('aria-pressed','false');
+
+    btn.addEventListener('click', function (e) {
+      if (!input) return;
+      const isPass = input.type === 'password';
+      input.type = isPass ? 'text' : 'password';
+      const newState = !(btn.getAttribute('aria-pressed') === 'true');
+      btn.setAttribute('aria-pressed', String(newState));
+      // return focus to input
+      input.focus();
+    });
+
+    // keyboard support (Space/Enter)
+    btn.addEventListener('keydown', function(e) {
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        btn.click();
+      }
+    });
+  });
+
+  // move focus to first invalid field after submit
+  const firstInvalid = document.querySelector('.is-invalid, .field-errors');
+  if (firstInvalid && firstInvalid.focus) firstInvalid.focus();
+});
+</script>
+{% endblock %}
+
+{% comment %} {% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block content %}
+  <div class="col-md-6 offset-md-3">
+    <h2>Create account</h2>
+    <form method="post" enctype="multipart/form-data" novalidate>
+      {% csrf_token %}
+      {{ form|crispy }}
+      <button type="submit" class="btn btn-primary">Sign up</button>
+    </form>
+  </div>
+{% endblock %} {% endcomment %}

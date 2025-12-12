@@ -1,0 +1,49 @@
+{# CBC_App/templates/CBC_App/verify.html #}
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+  <h3>Verify extracted results for: {{ doc.filename }}</h3>
+
+  <form method="post">
+    {% csrf_token %}
+    {{ formset.management_form }}
+    <table class="table table-bordered table-sm">
+  <thead>
+    <tr>
+      <th>Mapped Test</th>
+      <th>Extracted label (label_raw)</th>
+      <th>Value (raw)</th>
+      <th>Numeric</th>
+      <th>Unit</th>
+      <th>Verified</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for form in formset %}
+    <tr>
+      <td>{% if form.instance.test %}{{ form.instance.test.display_name }}{% else %}<span class="text-muted">(unmatched)</span>{% endif %}</td>
+      <td>{{ form.instance.label_raw|default:"(no label)" }}</td>
+      <td>{{ form.value_raw }}</td>
+      <td>{{ form.value_numeric }}</td>
+      <td>{{ form.unit }}</td>
+      <td>{{ form.verified }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<h4 class="mt-4">Raw OCR (parsed rows)</h4>
+<table class="table table-sm table-striped">
+  <thead><tr><th>Extracted label</th><th>Mapped</th><th>Value</th><th>Unit</th></tr></thead>
+  <tbody>
+    {% for p in parsed %}
+      <tr>
+        <td>{{ p.label_raw }}</td>
+        <td>{{ p.mapped }}</td>
+        <td>{{ p.value }}</td>
+        <td>{{ p.unit }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

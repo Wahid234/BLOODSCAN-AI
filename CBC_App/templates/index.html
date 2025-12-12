@@ -1,0 +1,412 @@
+{% extends "base.html" %}
+{% block head %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  .card-compact { padding:.75rem; }
+  .small-muted { font-size:.9rem; color:#6c757d; }
+  .profile-avatar {
+    width:64px; height:64px; object-fit:cover; border-radius:50%; border:1px solid #e9ecef;
+  }
+  .stat-card { min-height:72px; }
+  .text-break-ellipsis { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:340px; display:block; }
+  @media (max-width: 992px) {
+    .text-break-ellipsis { max-width:220px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="container py-5">
+  <div class="row g-4">
+
+    <!-- Left column: Profile card & actions -->
+    <div class="col-lg-4">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center mb-3">
+            <div class="me-3">
+              {% if profile and profile.profile_image %}
+                <img src="{{ profile.profile_image.url }}" alt="avatar" class="profile-avatar">
+              {% else %}
+                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+                  <i class="bi bi-person-fill" style="font-size:1.6rem;color:#6c757d;"></i>
+                </div>
+              {% endif %}
+            </div>
+            <div class="flex-fill">
+              <h5 class="card-title mb-0">{{ profile.full_name|default:user.get_full_name|default:user.username }}</h5>
+              <small class="text-muted">{{ profile.role|default:"User" }}</small>
+            </div>
+          </div>
+
+          {% if user.is_authenticated %}
+            <div class="mb-3">
+              {% if profile %}
+                <p class="mb-1"><strong>Mobile:</strong> {{ profile.mobile_number|default:"-" }}</p>
+                <p class="mb-1"><strong>Joined:</strong> {{ user.date_joined|date:"M d, Y" }}</p>
+              {% else %}
+                <p class="mb-1 text-muted">No profile found.</p>
+              {% endif %}
+            </div>
+
+            <div class="d-grid gap-2">
+              {% if profile and profile.role == 'patient' %}
+                <a href="{% url 'CBC_App:manual_entry' %}" class="btn btn-primary btn-lg">
+                  <i class="bi bi-pencil-square me-2"></i> Manual Entry
+                </a>
+                <a href="{% url 'CBC_App:upload' %}" class="btn btn-outline-primary btn-lg">
+                  <i class="bi bi-upload me-2"></i> Upload report
+                </a>
+                <a href="{% url 'CBC_App:my_shared_reports' %}" class="btn btn-outline-secondary btn-lg">
+                  <i class="bi bi-share me-2"></i> My shared reports
+                </a>
+              {% elif profile and profile.role == 'doctor' %}
+                <a href="{% url 'CBC_App:doctor_inbox' %}" class="btn btn-primary btn-lg">
+                  <i class="bi bi-inbox me-2"></i> Inbox
+                </a>
+                
+              {% else %}
+                <a href="{% url 'CBC_App:manual_entry' %}" class="btn btn-primary btn-lg">
+                  <i class="bi bi-pencil-square me-2"></i> Manual Entry
+                </a>
+                <a href="{% url 'CBC_App:upload' %}" class="btn btn-outline-primary btn-lg">
+                  <i class="bi bi-upload me-2"></i> Upload report
+                </a>
+              {% endif %}
+            </div>
+
+          {% else %}
+            <p class="mb-3">Please <a href="{% url 'CBC_App:signup' %}">Sign up</a> or <a href="{% url 'CBC_App:login' %}">Login</a> to manage your reports.</p>
+            <div class="d-grid gap-2">
+              <a href="{% url 'CBC_App:login' %}" class="btn btn-primary">Login</a>
+              <a href="{% url 'CBC_App:signup' %}" class="btn btn-outline-primary">Sign up</a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Small stats -->
+      {% if profile and profile.role == 'patient' %}
+      <div class="row g-2 mt-3">
+        <div class="col-6">
+          <div class="card bg-white border-0 shadow-sm p-2 stat-card text-center">
+            <div class="card-body p-2">
+              <div class="h5 mb-0">{{ documents|length|default:0 }}</div>
+              <small class="text-muted">Documents</small>
+            </div>
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="card bg-white border-0 shadow-sm p-2 stat-card text-center">
+            <div class="card-body p-2">
+              <div class="h5 mb-0">{{ shared_reports|length|default:0 }}</div>
+              <small class="text-muted">Shared reports</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% elif profile and profile.role == 'doctor' %}
+      <div class="row g-2 mt-3">
+        <div class="col-12">
+          <div class="card bg-white border-0 shadow-sm p-2 stat-card">
+            <div class="card-body d-flex align-items-center justify-content-between p-2">
+              <div>
+                <div class="small-muted">Assigned shares</div>
+                <div class="h5 mb-0">
+                  {{ doctor_shared_reports|length }}
+                </div>
+              </div>
+              <div>
+                <a href="{% url 'CBC_App:doctor_inbox' %}" class="btn btn-sm btn-outline-primary">Open Inbox</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Right column: Main content -->
+    <div class="col-lg-8">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <div>
+              <h4 class="mb-0">Dashboard</h4>
+              <small class="text-muted">Overview of your recent activity</small>
+            </div>
+            <div>
+              {% if profile and profile.role == 'patient' %}
+                <a href="{% url 'CBC_App:upload' %}" class="btn btn-sm btn-outline-primary">
+                  <i class="bi bi-plus-lg me-1"></i> New report
+                </a>
+              {% elif profile and profile.role == 'doctor' %}
+                <a href="{% url 'CBC_App:doctor_inbox' %}" class="btn btn-sm btn-outline-primary">
+                  <i class="bi bi-inbox me-1"></i> Open Inbox
+                </a>
+              {% endif %}
+            </div>
+          </div>
+
+          {% if not user.is_authenticated %}
+            <div class="text-center py-5">
+              <h5>Please sign in</h5>
+              <p class="text-muted">You need to sign in to view and manage your documents.</p>
+              <a href="{% url 'CBC_App:login' %}" class="btn btn-primary me-2">Login</a>
+              <a href="{% url 'CBC_App:signup' %}" class="btn btn-outline-primary">Sign up</a>
+            </div>
+
+          {% else %}
+            {% if profile and profile.role == 'patient' %}
+              <h5 class="mt-3">Your recent documents</h5>
+
+              {% if documents %}
+                <div class="table-responsive">
+                  <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                      <tr>
+                        <th scope="col">#</th>
+                        <th scope="col">Filename</th>
+                        <th scope="col">Uploaded</th>
+                        <th scope="col">Status</th>
+                        
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for d in documents %}
+                        <tr>
+                          <td>{{ forloop.counter }}</td>
+                          <td class="text-break-ellipsis" title="{{ d.filename }}">{{ d.filename }}</td>
+                          <td>
+                            {% if d.upload_time %}
+                              {{ d.upload_time|date:"M d, Y H:i" }}
+                            {% else %}
+                              -
+                            {% endif %}
+                          </td>
+                          <td>
+                            {% if d.status == 'completed' or d.status == 'processed' %}
+                              <span class="badge bg-success text-white">Processed</span>
+                            {% elif d.status == 'pending' %}
+                              <span class="badge bg-warning text-dark">Pending</span>
+                            {% elif d.status == 'failed' %}
+                              <span class="badge bg-danger">Failed</span>
+                            {% else %}
+                              <span class="badge bg-secondary text-white">{{ d.status }}</span>
+                            {% endif %}
+                          </td>
+                          <td class="text-end">
+                            <div class="btn-group" role="group" aria-label="actions">
+                             
+                              
+                              <a href="#" class="btn btn-sm btn-outline-success" title="Share" data-bs-toggle="modal" data-bs-target="#shareModal">
+                                <i class="bi bi-share"></i>
+                              </a>
+                            </div>
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+
+              {% else %}
+                <div class="text-center py-5">
+                  <div class="mb-3">
+                    <i class="bi bi-inbox" style="font-size:2.5rem;color:#6c757d;"></i>
+                  </div>
+                  <h5 class="mb-1">No documents uploaded yet</h5>
+                  <p class="text-muted mb-3">Upload your first CBC report to start processing.</p>
+                  <a href="{% url 'CBC_App:upload' %}" class="btn btn-primary">Upload first report</a>
+                </div>
+              {% endif %}
+
+              <!-- My shared reports (patient) -->
+              <div class="mt-4">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <div><h5 class="mb-0">My shared reports</h5><small class="text-muted">Reports you shared with doctors</small></div>
+                  <div><a href="{% url 'CBC_App:my_shared_reports' %}" class="btn btn-sm btn-outline-secondary">Show All</a></div>
+                </div>
+
+                {% if shared_reports %}
+                  <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                      <thead class="table-light">
+                        <tr>
+                          <th>#</th>
+                          <th>Doctor</th>
+                          <th>Shared Date</th>
+                          <th>Message</th>
+                          <th>Status</th>
+                          <th class="text-end">Tests</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for s in shared_reports %}
+                          <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ s.doctor.get_full_name|default:s.doctor.username }}</td>
+                            <td>{{ s.created_at|date:"M d, Y H:i" }}</td>
+                            <td class="text-break">{{ s.message|default:"(none)" }}</td>
+                            <td>
+                              {% if s.status == 'pending' %}
+                                <span class="badge bg-warning text-dark">Pending</span>
+                              {% elif s.status == 'viewed' %}
+                                <span class="badge bg-info text-dark">Viewed</span>
+                              {% elif s.status == 'responded' %}
+                                <span class="badge bg-success">Responded</span>
+                              {% else %}
+                                <span class="badge bg-secondary">{{ s.status }}</span>
+                              {% endif %}
+                            </td>
+                            <td class="text-end">{{ s.tests.count }}</td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                {% else %}
+                  <div class="text-center py-4 text-muted">
+                    <p class="mb-0">You haven't shared any reports yet.</p>
+                  </div>
+                {% endif %}
+              </div>
+
+            {% elif profile and profile.role == 'doctor' %}
+              <!-- Doctor view: Inbox preview + quick actions -->
+            {% comment %}
+Place this where تريد عرض قائمة التقارير للطبيب.
+Expect context variable: doctor_shared_reports (QuerySet of SharedReport)
+Each SharedReport should have: sender (User), tests (M2M to TestResult), created_at, document, message, status, id
+{% endcomment %}
+
+{% if doctor_shared_reports and doctor_shared_reports|length > 0 %}
+  <div class="card shadow-sm mb-3">
+    <div class="card-body">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h5 class="mb-0">Reports Shared With You</h5>
+        <small class="text-muted">{{ doctor_shared_reports|length }} assigned shares</small>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover table-striped align-middle">
+          <thead class="table-light">
+            <tr>
+              <th style="width:48px">#</th>
+              <th>Patient</th>
+              <th>Shared On</th>
+              <th class="text-center">Assigned Shares</th>
+              <th>Document</th>
+              <th>Message</th>
+              <th>Status</th>
+              <!-- <th class="text-end" style="width:120px">Actions</th> -->
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in doctor_shared_reports %}
+              <tr>
+                <td>{{ forloop.counter }}</td>
+
+                <td>
+                  <div class="fw-semibold">{{ r.sender.get_full_name|default:r.sender.username }}</div>
+                  <div class="small text-muted">{{ r.sender.email }}</div>
+                </td>
+
+                <td>
+                  {% if r.created_at %}
+                    {{ r.created_at|date:"M d, Y H:i" }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+
+                <td class="text-center">
+                  <span class="badge bg-primary">{{ r.tests.count }}</span>
+                </td>
+
+                <td>
+                  {% if r.document %}
+                    <div class="text-truncate" style="max-width:180px;">
+                      <a href="{{ r.document.file.url }}" target="_blank" rel="noopener noreferrer">
+                        {{ r.document.filename|default:r.document.file.name }}
+                      </a>
+                    </div>
+                  {% else %}
+                    <span class="text-muted">No file</span>
+                  {% endif %}
+                </td>
+
+                <td class="text-break" style="max-width:240px;">
+                  {{ r.message|default:"(no message)" }}
+                </td>
+
+                <td>
+                  {% if r.status == 'pending' %}
+                    <span class="badge bg-warning text-dark">Pending</span>
+                  {% elif r.status == 'viewed' %}
+                    <span class="badge bg-info text-dark">Viewed</span>
+                  {% elif r.status == 'responded' %}
+                    <span class="badge bg-success">Responded</span>
+                  {% elif r.status == 'archived' %}
+                    <span class="badge bg-secondary">Archived</span>
+                  {% else %}
+                    <span class="badge bg-secondary">{{ r.status|default:"-" }}</span>
+                  {% endif %}
+                </td>
+
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Optional: wire accept/reject buttons (AJAX calls to shared_accept/shared_reject)
+    document.addEventListener('click', function(e){
+      const btn = e.target.closest('.accept-share-btn, .reject-share-btn');
+      if (!btn) return;
+      const isAccept = btn.classList.contains('accept-share-btn');
+      const url = isAccept ? "{% url 'CBC_App:shared_accept' %}" : "{% url 'CBC_App:shared_reject' %}";
+      const id = btn.getAttribute('data-id');
+      if (!id) return;
+      if (!confirm(isAccept ? 'Accept this shared report?' : 'Reject this shared report?')) return;
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': '{{ csrf_token }}',
+          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+        },
+        body: new URLSearchParams({ shared_id: id })
+      }).then(r => r.json()).then(j => {
+        if (j.ok) {
+          location.reload();
+        } else {
+          alert('Action failed: ' + (j.error || 'unknown'));
+        }
+      }).catch(err => alert('Request failed: ' + err));
+    });
+  </script>
+
+{% else %}
+  <div class="card shadow-sm">
+    <div class="card-body text-center">
+      <h6 class="mb-1">No shared reports assigned to you yet.</h6>
+      <p class="text-muted mb-0">When a patient shares tests with you they will appear here.</p>
+    </div>
+  </div>
+{% endif %}
+
+          {% endif %}
+          {% endif %}
+        </div>
+      </div>
+    </div> <!-- /.col-lg-8 -->
+
+  </div> <!-- /.row -->
+
+</div> <!-- /.container -->
+
+{% endblock %}

@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+
+{% block head %}
+  {# If your base already includes Bootstrap you can remove this link #}
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+  <style>
+    .small-muted { font-size: .875rem; color: #6c757d; }
+    .card-compact { padding: .75rem; }
+    .text-ar { direction: rtl; unicode-bidi: embed; }
+    .interp-cell { min-width: 300px; max-width: 560px; word-break: break-word; }
+    .lang-toggle .btn.active { box-shadow: 0 0 0 0.15rem rgba(13,110,253,.15); }
+    .ocr-pre { background: #f8f9fa; border-radius: .25rem; padding: .75rem; font-size: .9rem; white-space: pre-wrap; }
+  </style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+  
+    <div>
+      <h3 class="mb-0">Interpreter  results</h3>
+      <div class="small-muted">Manual entry results</div>
+    </div>
+
+    <div class="d-flex gap-2 align-items-center">
+      <div class="lang-toggle btn-group me-2" role="group" aria-label="Language toggle">
+        <button id="lang-en" type="button" class="btn btn-outline-primary btn-sm">English</button>
+        <button id="lang-ar" type="button" class="btn btn-outline-primary btn-sm">العربية</button>
+      </div>
+
+      <a href="{% url 'CBC_App:manual_entry' %}" class="btn btn-outline-primary">Add more</a>
+      <button id="download-csv" class="btn btn-outline-success">Download CSV</button>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mb-3">
+    <div class="card-body card-compact">
+      <div class="row">
+        <div class="col-sm-4">
+          <h6 class="mb-0">Summary</h6>
+          <div class="small-muted">Extracted tests</div>
+          <h3 class="mt-2">{{ saved|length }}</h3>
+        </div>
+        <div class="col-sm-8">
+          <p class="small-muted mb-1">Notes</p>
+          <p class="mb-0">Results saved to the database and can be reviewed later from the interpretations page.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover table-striped mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>Test</th>
+              <th>Code</th>
+              <th>Extracted</th>
+              <th>Numeric</th>
+              <th>Unit</th>
+              <th>Range</th>
+              <th>Flag</th>
+              <th>Interpretation</th>
+              <!-- <th class="text-end">Actions</th> -->
+            </tr>
+          </thead>
+
+          <tbody>
+            {% if saved %}
+              {% for item in saved %}
+                {% with tr=item.test_result it=item.interpretation inp=item.input %}
+                <tr>
+                  <td>{{ forloop.counter }}</td>
+
+                  <td class="fw-semibold">
+                    {{ tr.test.display_name|default:inp.test_name|default:"(unnamed)" }}
+                  </td>
+                  <td>
+                    {% if tr.test %}<div class="small-muted">{{ tr.test.code }}</div>{% endif %}
+                  </td>
+
+                  <td>{{ tr.value_raw }}</td>
+                  <td>{{ tr.value_numeric }}</td>
+                  <td>{{ tr.unit }}</td>
+
+                  <td>
+                    {% if inp.ref_min or inp.ref_max %}
+                      {{ inp.ref_min|default:"-" }} - {{ inp.ref_max|default:"-" }}
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+
+                  <td>
+                    {% if it.flag == "high" %}
+                      <span class="badge bg-danger">High</span>
+                    {% elif it.flag == "low" %}
+                      <span class="badge bg-warning text-dark">Low</span>
+                    {% elif it.flag == "normal" %}
+                      <span class="badge bg-success">Normal</span>
+                    {% else %}
+                      <span class="badge bg-secondary">Unknown</span>
+                    {% endif %}
+                  </td>
+
+                  <td class="interp-cell">
+                    <div class="interp-block" data-index="{{ forloop.counter0 }}">
+                      <div class="text-en small">
+                        {# Primary: saved.text_en, fallback to interpretation.text stored in DB #}
+                        {% if item.text_en %}
+                          {{ item.text_en }}
+                        {% elif it.text %}
+                          {{ it.text }}
+                        {% else %}
+                          <span class="text-muted">No English interpretation</span>
+                        {% endif %}
+                      </div>
+
+                      <div class="text-ar small" style="display:none;">
+                        {# Primary: saved.text_ar, fallback to meta.text_ar if exists #}
+                        {% if item.text_ar %}
+                          {{ item.text_ar }}
+                        {% elif it.meta and it.meta.text_ar %}
+                          {{ it.meta.text_ar }}
+                        {% else %}
+                          <span class="text-muted">لا يوجد تفسير بالعربية</span>
+                        {% endif %}
+                      </div>
+                    </div>
+                  </td>
+
+                  <!-- <td class="text-end">
+                    <div class="d-inline-flex gap-1">
+                      <a href="#" class="btn btn-sm btn-outline-primary action-btn" title="Edit">Edit</a>
+                      <a href="#" class="btn btn-sm btn-outline-secondary action-btn" title="View">View</a>
+                    </div>
+                  </td> -->
+                </tr>
+                {% endwith %}
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="9" class="text-center small-muted">No results to show.</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  
+  <div class="d-flex justify-content-end mt-3 gap-2">
+    <a href="{% url 'CBC_App:manual_entry' %}" class="btn btn-outline-secondary">Back</a>
+    
+    <!-- Share button (place near top actions) -->
+    <button class="btn btn-primary" id="open-share-modal">Share with Doctor</button>
+  </div>
+  </div>
+
+<!-- Modal (Bootstrap 5) -->
+<div class="modal fade" id="shareModal" tabindex="-1" aria-labelledby="shareModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form id="shareForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="shareModalLabel">Share results with a doctor</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>Select a doctor and which tests to share. You can add an optional message.</p>
+
+          <div class="mb-3">
+            <label for="doctorSelect" class="form-label">Doctor</label>
+            <select id="doctorSelect" class="form-select" name="doctor_id" required>
+              <option value="">Loading doctors...</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Tests to share</label>
+            <div id="testsCheckboxList">
+              <!-- lines inserted by JS -->
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="shareMessage" class="form-label">Message (optional)</label>
+            <textarea id="shareMessage" name="message" rows="3" class="form-control"></textarea>
+          </div>
+
+          <!-- hidden fields -->
+          <input type="hidden" id="documentIdField" name="document_id" value="{{ doc.id|default:'' }}">
+          <input type="hidden" id="testIdsField" name="test_ids" value="">
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button id="doShareBtn" type="submit" class="btn btn-primary">Share</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const shareModal = new bootstrap.Modal(document.getElementById('shareModal'));
+  const openBtn = document.getElementById('open-share-modal');
+  const doctorSelect = document.getElementById('doctorSelect');
+  const testsContainer = document.getElementById('testsCheckboxList');
+  const testIdsField = document.getElementById('testIdsField');
+  const docIdField = document.getElementById('documentIdField');
+
+  // Prepare test list from page results: assume 'saved' context exists in template
+  const savedItems = [
+    {% for item in saved %}
+      {
+        id: "{{ item.test_result.id }}",
+        name: "{{ item.test_result.test.display_name|default:item.input.test_name|escapejs }}",
+        value: "{{ item.test_result.value_raw|escapejs }}"
+      }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ];
+
+  function renderTestsCheckboxes(){
+    testsContainer.innerHTML = '';
+    if (!savedItems || savedItems.length === 0) {
+      testsContainer.innerHTML = '<div class="text-muted">No individual tests available to share (sharing document only).</div>';
+      return;
+    }
+    savedItems.forEach(it => {
+      const id = it.id;
+      const label = it.name + ' — ' + (it.value || '');
+      const html = `
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" value="${id}" id="chk-${id}" checked>
+          <label class="form-check-label" for="chk-${id}">${label}</label>
+        </div>`;
+      testsContainer.insertAdjacentHTML('beforeend', html);
+    });
+  }
+
+  openBtn?.addEventListener('click', async (e) => {
+    // fetch doctors list
+    try {
+      const resp = await fetch("{% url 'CBC_App:api_doctors_list' %}");
+      const data = await resp.json();
+      doctorSelect.innerHTML = '<option value="">Select a doctor</option>';
+      data.doctors.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.id;
+        opt.textContent = d.full_name + (d.specialty ? ' — ' + d.specialty : '');
+        doctorSelect.appendChild(opt);
+      });
+    } catch (err) {
+      doctorSelect.innerHTML = '<option value="">Could not load doctors</option>';
+    }
+    renderTestsCheckboxes();
+    shareModal.show();
+  });
+
+  // submit share form
+  document.getElementById('shareForm').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    // gather checked test ids
+    const ids = Array.from(testsContainer.querySelectorAll('input[type=checkbox]:checked')).map(ch => ch.value);
+    testIdsField.value = ids.join(',');
+    // prepare form data
+    const formData = new FormData(document.getElementById('shareForm'));
+    // POST to endpoint
+    try {
+      const resp = await fetch("{% url 'CBC_App:share_with_doctor' %}", {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}'},
+        body: formData
+      });
+      const body = await resp.json();
+      if (body.ok) {
+        shareModal.hide();
+        alert('Shared successfully with doctor.');
+      } else {
+        alert('Share failed: ' + (body.error || JSON.stringify(body.errors || body)));
+      }
+    } catch (err) {
+      alert('Share request failed: ' + err);
+    }
+  });
+});
+</script>
+
+{# JS: language toggle + CSV download #}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"  crossorigin="anonymous"></script>
+<script>
+  const btnEn = document.getElementById('lang-en');
+  const btnAr = document.getElementById('lang-ar');
+
+  function showEnglish() {
+    document.querySelectorAll('.text-en').forEach(el => el.style.display = '');
+    document.querySelectorAll('.text-ar').forEach(el => el.style.display = 'none');
+    btnEn.classList.add('active'); btnAr.classList.remove('active');
+    try { localStorage.setItem('results_lang', 'en'); } catch(e) {}
+  }
+  function showArabic() {
+    document.querySelectorAll('.text-en').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.text-ar').forEach(el => el.style.display = '');
+    btnAr.classList.add('active'); btnEn.classList.remove('active');
+    try { localStorage.setItem('results_lang', 'ar'); } catch(e) {}
+  }
+
+  btnEn?.addEventListener('click', showEnglish);
+  btnAr?.addEventListener('click', showArabic);
+
+  (function(){
+    try {
+      const lang = localStorage.getItem('results_lang') || 'en';
+      if (lang === 'ar') showArabic(); else showEnglish();
+    } catch(e) { showEnglish(); }
+  })();
+
+
+</script> 
+{% endblock %}
+
+

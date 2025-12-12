@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% block title %}Login{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Clean, responsive login card */
+  .auth-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5rem 1rem;
+    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+  }
+  .auth-card {
+    width: 100%;
+    max-width: 480px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(33, 37, 41, 0.08);
+    overflow: hidden;
+    background: #fff;
+  }
+  .auth-card .card-body {
+    padding: 2rem;
+  }
+  .brand {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+  .brand img { height: 48px; width: 48px; object-fit: cover; border-radius: 8px; }
+  .form-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-top: 0.5rem;
+  }
+  .divider { height:1px; background: #eef2f6; margin: 1.25rem 0; }
+  @media (max-width: 576px) {
+    .auth-card .card-body { padding: 1.25rem; }
+  }
+</style>
+{% endblock %}
+{% block header %} {% endblock %}
+{% block content %}
+  <div class="container mt-4  w-50">
+<div class="auth-wrapper">
+  <div class="auth-card card">
+    <div class="card-body">
+      <!-- Brand / Logo -->
+      <div class="brand">
+        <img src="{% static 'images/logo.png' %}" alt="App logo" onerror="this.style.display='none'">
+        <div>
+          <h4 class="text-center">Sign in to your account</h4>
+          <div class="text-muted text-center">Enter your credentials to access your account</div>
+          <hr>
+        </div>
+      </div>
+
+      <!-- Django messages -->
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }} py-2" role="alert">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      <!-- Non-field form errors -->
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+          {{ form.non_field_errors }}
+        </div>
+      {% endif %}
+
+      <!-- Login form -->
+      <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="mb-3">
+          {{ form.username|as_crispy_field }}
+        </div>
+        <div class="mb-3">
+          {{ form.password|as_crispy_field }}
+        </div>
+
+        <div class="form-footer">
+          {% comment %} <div class="form-check">
+            <input class="form-check-input" type="checkbox" value="1" id="rememberMe" name="remember_me"
+              {% if request.POST.remember_me %}checked{% endif %}>
+            <label class="form-check-label" for="rememberMe">Remember me</label>
+          </div> 
+
+          <div>
+            {# adjust this URL name if different in your app #}
+            <a href="" class="small">Forgot password?</a>
+          </div>{% endcomment %}
+        </div>
+
+        <div class="mt-4 d-grid">
+          <button type="submit" class="btn btn-primary btn-lg" aria-label="Sign in">Sign in</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="text-center">
+          <small class="text-muted">Don't have an account? <a href="{% url 'CBC_App:signup' %}">Create account</a></small>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // focus first invalid or username field on load
+  document.addEventListener('DOMContentLoaded', function () {
+    const invalid = document.querySelector('.is-invalid, .field-errors');
+    if (invalid) { invalid.focus(); return; }
+    const user = document.querySelector('input[name="username"], input[name="email"]');
+    if (user) user.focus();
+  });
+</script>
+{% endblock %}
+
+
+
+{% comment %} {% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block content %}
+  <div class="col-md-6 offset-md-3">
+    <h2>Login</h2>
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {{ form|crispy }}
+      <button type="submit" class="btn btn-primary">Login</button>
+    </form>
+  </div>
+{% endblock %} {% endcomment %}

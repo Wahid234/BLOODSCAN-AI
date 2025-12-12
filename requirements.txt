@@ -1,0 +1,8 @@
+Django
+psycopg2-binary
+django-environ
+Pillow
+django-crispy-forms
+EOF
+pytesseract 
+rapidfuzz
