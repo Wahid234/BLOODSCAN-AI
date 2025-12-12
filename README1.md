@@ -35,11 +35,6 @@ A Django-based web application for automated extraction, verification, and inter
 
 ### Setup Steps
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/Mehranalam/Interpretation-blood-test-results.git
-   cd "CBC project"
-   ```
 
 2. **Create and activate virtual environment**:
    ```bash
@@ -145,11 +140,6 @@ CBC_Main_Project/
 │   ├── utils/                         # Utility modules
 │   │   ├── cbc_interpreter.py         # CBC interpretation logic
 │   │   └── interpreter_service.py     # Interpreter service
-│   ├── interpreter_src/               # Embedded interpreter
-│   │   ├── app/
-│   │   ├── assets/
-│   │   ├── config2.yml
-│   │   └── README.md
 │   ├── management/                    # Custom management commands
 │   └── __pycache__/
 ├── CBC_Main_Project/                  # Django project configuration
@@ -310,15 +300,7 @@ For production deployment:
 
 This project is licensed under the MIT License - see LICENSE file for details.
 
-## Contributors
 
-- **Mehran Alam** - Project Lead
-
-## Contact & Support
-
-For issues, questions, or contributions:
-- GitHub Issues: [Project Issues](https://github.com/Mehranalam/Interpretation-blood-test-results/issues)
-- Email: [Create an issue on GitHub]
 
 ## Acknowledgments
 
@@ -337,5 +319,6 @@ For issues, questions, or contributions:
 - AI-powered interpretation
 - User authentication
 - Result history tracking
-#   B L O O D S C A N - A I  
+#   B L O O D S C A N - A I 
+ 
  
