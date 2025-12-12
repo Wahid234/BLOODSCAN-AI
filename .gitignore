@@ -1,0 +1,24 @@
+# Secrets and environment variables
+.env
+.env.local
+config.yml
+
+# Python cache
+*.pyc
+__pycache__/
+CBC_Main_Project/CBC_App/__pycache__/__init__.cpython-312.pyc
+CBC_Main_Project/CBC_App/utils/__pycache__/interpreter_service.cpython-312.pyc
+CBC_Main_Project/CBC_App/__pycache__/__init__.cpython-313.pyc
+CBC_Main_Project/CBC_App/__pycache__/admin.cpython-313.pyc
+CBC_Main_Project/CBC_App/__pycache__/admin.cpython-312.pyc
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Django
+db.sqlite3
+*.log
+media/uploads/
